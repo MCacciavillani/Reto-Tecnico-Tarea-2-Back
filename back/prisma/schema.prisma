@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  USER
+  AGENT
+  SUPPORT
+}
+
+enum Status {
+  ACTIVE
+  EXPIRED
+  PENDING
+}
+
+enum Type {
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  password     String
+  name         String
+  phone        Int
+  messageCount Int     @default(0)
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id])
+  role         Role    @default(USER)
+}
+
+model Company {
+  id                String          @id @default(uuid())
+  name              String
+  description       String
+  planId            String
+  plan              Plan            @relation(fields: [planId], references: [id])
+  planHistory       PlanHistories[] @relation("PlanHistory")
+  availableMessages Int
+  users             User[]
+}
+
+model Plan {
+  id            String          @id @default(uuid())
+  name          String
+  price         Float
+  description   String
+  type          Type
+  status        Status          @default(ACTIVE)
+  companies     Company[]
+  planHistories PlanHistories[]
+}
+
+model PlanHistories {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation("PlanHistory", fields: [companyId], references: [id])
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id])
+  startDate DateTime @default(now())
+  endDate   DateTime
+  status    Status   @default(PENDING)
+}
