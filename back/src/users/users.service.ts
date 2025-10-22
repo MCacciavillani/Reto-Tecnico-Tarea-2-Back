@@ -1,26 +1,82 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(private prisma: PrismaService) {}
+
+  async create(createUserDto: CreateUserDto) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: createUserDto.email,
+      },
+    });
+    if (user) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const company = await this.prisma.company.findUnique({
+      where: {
+        id: createUserDto.companyId,
+      },
+    });
+    if (!company) {
+      throw new ConflictException('Company with this id does not exist');
+    }
+
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    createUserDto.password = hashedPassword;
+    return await this.prisma.user.create({
+      data: createUserDto,
+    });
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findAll(companyId?: string) {
+    return await this.prisma.user.findMany({
+      where: companyId ? { companyId } : {},
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: string) {
+    return await this.prisma.user.findUnique({
+      where: {
+        id: id,
+      },
+    });
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const { newPassword, ...data } = updateUserDto;
+
+    if (updateUserDto.password) {
+      if (!newPassword) {
+        throw new BadRequestException(
+          'If you want to change the password, you must provide both the old and the new one.',
+        );
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      data.password = hashedPassword;
+    }
+    return await this.prisma.user.update({
+      where: {
+        id: id,
+      },
+      data,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async remove(id: string) {
+    return await this.prisma.user.delete({
+      where: {
+        id: id,
+      },
+    });
   }
 }
