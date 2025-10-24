@@ -37,7 +37,7 @@ model User {
   email        String  @unique
   password     String
   name         String
-  phone        Int
+  phone        String
   messageCount Int     @default(0)
   companyId    String
   company      Company @relation(fields: [companyId], references: [id])
@@ -48,10 +48,10 @@ model Company {
   id                String          @id @default(uuid())
   name              String
   description       String
-  planId            String
-  plan              Plan            @relation(fields: [planId], references: [id])
+  planId            String?
+  plan              Plan?           @relation(fields: [planId], references: [id])
   planHistory       PlanHistories[] @relation("PlanHistory")
-  availableMessages Int
+  availableMessages Int             @default(0)
   users             User[]
 }
 
@@ -60,6 +60,7 @@ model Plan {
   name          String
   price         Float
   description   String
+  messageLimit  Int
   type          Type
   status        Status          @default(ACTIVE)
   companies     Company[]

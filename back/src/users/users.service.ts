@@ -7,13 +7,19 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { LoginUserDto } from './dto/login-user.dto';
+import { Payload } from './jwt.strategy';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: {
         email: createUserDto.email,
       },
@@ -22,7 +28,7 @@ export class UsersService {
       throw new ConflictException('User with this email already exists');
     }
 
-    const company = await this.prisma.company.findUnique({
+    const company = await this.prisma.company.findFirst({
       where: {
         id: createUserDto.companyId,
       },
@@ -38,6 +44,36 @@ export class UsersService {
     });
   }
 
+  async login(credentials: LoginUserDto) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: credentials.email,
+      },
+    });
+    if (!user) {
+      throw new BadRequestException('Invalid email or password');
+    }
+    const isPasswordValid = await bcrypt.compare(
+      credentials.password,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      throw new BadRequestException('Invalid email or password');
+    }
+    const payload: Payload = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      messageCount: user.messageCount,
+      company: user.companyId,
+      role: user.role,
+    };
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+
   async findAll(companyId?: string) {
     return await this.prisma.user.findMany({
       where: companyId ? { companyId } : {},
@@ -45,7 +81,7 @@ export class UsersService {
   }
 
   async findOne(id: string) {
-    return await this.prisma.user.findUnique({
+    return await this.prisma.user.findFirst({
       where: {
         id: id,
       },

@@ -1,26 +1,86 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { Type } from '@prisma/client';
 
 @Injectable()
 export class PlansService {
-  create(createPlanDto: CreatePlanDto) {
-    return 'This action adds a new plan';
+  constructor(private prisma: PrismaService) {}
+
+  async create(createPlanDto: CreatePlanDto) {
+    const plan = await this.prisma.plan.findFirst({
+      where: { name: createPlanDto.name },
+    });
+    if (plan) {
+      throw new ConflictException('Plan with this name already exists');
+    }
+    return await this.prisma.plan.create({
+      data: createPlanDto,
+    });
   }
 
-  findAll() {
-    return `This action returns all plans`;
+  async findAll() {
+    return await this.prisma.plan.findMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} plan`;
+  async asignPlan(id: string, companyId: string) {
+    const plan = await this.prisma.plan.findFirst({
+      where: { id },
+    });
+    if (!plan) {
+      throw new NotFoundException('Plan not found');
+    }
+
+    const currentDate = new Date();
+    const endDate = new Date();
+
+    if (plan.type === Type.MONTHLY) {
+      endDate.setMonth(currentDate.getMonth() + 1);
+    } else if (plan.type === Type.YEARLY) {
+      endDate.setFullYear(currentDate.getFullYear() + 1);
+    }
+
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { planId: id },
+    });
+
+    await this.prisma.planHistories.create({
+      data: {
+        companyId,
+        planId: id,
+        endDate,
+      },
+    });
   }
 
-  update(id: number, updatePlanDto: UpdatePlanDto) {
-    return `This action updates a #${id} plan`;
+  async findOne(id: string) {
+    return await this.prisma.plan.findFirst({
+      where: { id },
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} plan`;
+  async update(id: string, updatePlanDto: UpdatePlanDto) {
+    const plan = await this.prisma.plan.findFirst({
+      where: { id },
+    });
+    if (!plan) {
+      throw new NotFoundException('Plan not found');
+    }
+    return await this.prisma.plan.update({
+      where: { id },
+      data: updatePlanDto,
+    });
+  }
+
+  async remove(id: string) {
+    return await this.prisma.plan.delete({
+      where: { id },
+    });
   }
 }
