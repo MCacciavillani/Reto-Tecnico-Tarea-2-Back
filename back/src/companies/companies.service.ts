@@ -20,7 +20,9 @@ export class CompaniesService {
   }
 
   async findAll() {
-    return await this.prisma.company.findMany();
+    return await this.prisma.company.findMany({
+      include: { users: true, plan: true, planHistory: true },
+    });
   }
 
   async findOne(id: string) {
