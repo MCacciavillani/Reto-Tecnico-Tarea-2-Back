@@ -49,6 +49,7 @@ export class UsersService {
       where: {
         email: credentials.email,
       },
+      include: { company: true },
     });
     if (!user) {
       throw new BadRequestException('Invalid email or password');
@@ -66,7 +67,7 @@ export class UsersService {
       name: user.name,
       phone: user.phone,
       messageCount: user.messageCount,
-      company: user.companyId,
+      company: user.company.name,
       role: user.role,
     };
     return {
@@ -83,7 +84,7 @@ export class UsersService {
   async findOne(id: string) {
     return await this.prisma.user.findFirst({
       where: {
-        id: id,
+        id,
       },
     });
   }
