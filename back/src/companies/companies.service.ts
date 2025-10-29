@@ -2,10 +2,14 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PlansService } from 'src/plans/plans.service';
 
 @Injectable()
 export class CompaniesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private plansService: PlansService,
+  ) {}
 
   async create(createCompanyDto: CreateCompanyDto) {
     const company = await this.prisma.company.findFirst({
@@ -21,7 +25,14 @@ export class CompaniesService {
 
   async findAll() {
     return await this.prisma.company.findMany({
-      include: { users: true, plan: true, planHistory: true },
+      include: { users: true, planHistory: { include: { plan: true } } },
+    });
+  }
+
+  async findForName(name: string) {
+    return await this.prisma.company.findFirst({
+      where: { name },
+      include: { users: true, planHistory: { include: { plan: true } } },
     });
   }
 
@@ -35,6 +46,16 @@ export class CompaniesService {
     await this.prisma.company.findUniqueOrThrow({
       where: { id },
     });
+    if (updateCompanyDto.planId) {
+      const plan = await this.prisma.plan.findUniqueOrThrow({
+        where: { id: updateCompanyDto.planId },
+      });
+      if (plan.status === 'EXPIRED') {
+        throw new ConflictException('Plan is inactive');
+      }
+      updateCompanyDto.availableMessages = plan.messageLimit;
+      await this.plansService.asignPlan(updateCompanyDto.planId, id);
+    }
     return await this.prisma.company.update({
       where: { id },
       data: updateCompanyDto,

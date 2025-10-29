@@ -28,6 +28,13 @@ export class PlansService {
     return await this.prisma.plan.findMany();
   }
 
+  async findAllActives() {
+    return await this.prisma.plan.findMany({
+      where: { status: 'ACTIVE' },
+      include: { companies: true },
+    });
+  }
+
   async asignPlan(id: string, companyId: string) {
     const plan = await this.prisma.plan.findFirst({
       where: { id },
@@ -43,12 +50,9 @@ export class PlansService {
       endDate.setMonth(currentDate.getMonth() + 1);
     } else if (plan.type === Type.YEARLY) {
       endDate.setFullYear(currentDate.getFullYear() + 1);
+    } else if (plan.type === Type.CUSTOM) {
+      endDate.setDate(currentDate.getDate() + plan.duration!);
     }
-
-    await this.prisma.company.update({
-      where: { id: companyId },
-      data: { planId: id },
-    });
 
     await this.prisma.planHistories.create({
       data: {

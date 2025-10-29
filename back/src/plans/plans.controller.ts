@@ -25,6 +25,11 @@ export class PlansController {
     return this.plansService.findAll();
   }
 
+  @Get('actives')
+  findAllActives() {
+    return this.plansService.findAllActives();
+  }
+
   @Patch('asign:id')
   asignPlan(@Param('id') id: string, @Body() companyId: string) {
     return this.plansService.asignPlan(id, companyId);

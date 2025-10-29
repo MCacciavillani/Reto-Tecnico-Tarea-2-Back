@@ -62,6 +62,7 @@ model Plan {
   description   String
   messageLimit  Int
   type          Type
+  duration      Int?
   status        Status          @default(ACTIVE)
   companies     Company[]
   planHistories PlanHistories[]
